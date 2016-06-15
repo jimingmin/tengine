@@ -1872,18 +1872,13 @@ ngx_http_process_request_header(ngx_http_request_t *r)
     }
 
     if (r->headers_in.content_type) {
-    	u_char *boundary_start = ngx_strstrn(r->headers_in.content_type->value.data, "boundary", 7);
-    	if (boundary_start) {
+    	u_char *boundary = ngx_strstrn(r->headers_in.content_type->value.data, "boundary", 7);
+    	if (boundary) {
 
-    		u_char *boundary_end = ngx_strstrn(boundary_start, "\r\n", 1);
-    		if (boundary_end && (*(++boundary_start) == '=')) {
-
-    			size_t boundary_size = boundary_end - boundary_start;
-    			u_char *boundary = ngx_palloc(r->pool, boundary_size + 1);
-    			ngx_cpystrn(boundary, boundary_start, boundary_size);
-
+    		boundary += 8;
+    		if (*boundary++ == '=') {
     			r->headers_in.boundary.data = boundary;
-    			r->headers_in.boundary.len = boundary_size + 1;
+    			r->headers_in.boundary.len = ngx_strlen(boundary) + 1;
     		}
     	}
     }
