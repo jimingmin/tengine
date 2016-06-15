@@ -229,8 +229,6 @@ typedef struct {
     off_t                             content_length_n;
     time_t                            keep_alive_n;
 
-    ngx_str_t						  boundary;		//for parse body from boundary block data
-
     unsigned                          connection_type:2;
     unsigned                          chunked:1;
     unsigned                          msie:1;
