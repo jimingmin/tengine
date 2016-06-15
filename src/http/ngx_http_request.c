@@ -1872,10 +1872,10 @@ ngx_http_process_request_header(ngx_http_request_t *r)
     }
 
     if (r->headers_in.content_type) {
-    	u_char *boundary_start = ngx_strstrn(r->headers_in.content_type->value.data, "boundary", sizeof("boundary") - 1);
+    	u_char *boundary_start = ngx_strstrn(r->headers_in.content_type->value.data, "boundary", 7);
     	if (boundary_start) {
 
-    		u_char *boundary_end = ngx_strstrn(boundary_start, "\r\n", sizeof("\r\n") - 1);
+    		u_char *boundary_end = ngx_strstrn(boundary_start, "\r\n", 1);
     		if (boundary_end && (*(++boundary_start) == '=')) {
 
     			size_t boundary_size = boundary_end - boundary_start;
