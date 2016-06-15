@@ -1879,10 +1879,11 @@ ngx_http_process_request_header(ngx_http_request_t *r)
     		if (boundary_end && (*(++boundary_start) == '=')) {
 
     			size_t boundary_size = boundary_end - boundary_start;
-    			u_char *p = ngx_palloc(r->pool, boundary_size + 1);
-    			ngx_cpystrn(p, boundary_start, boundary_size);
+    			u_char *boundary = ngx_palloc(r->pool, boundary_size + 1);
+    			ngx_cpystrn(boundary, boundary_start, boundary_size);
 
-    			r->headers_in.boudary.data = p;
+    			r->headers_in.boundary.data = boundary;
+    			r->headers_in.boundary.len = boundary_size + 1;
     		}
     	}
     }
