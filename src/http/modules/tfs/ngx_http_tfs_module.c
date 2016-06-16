@@ -1148,7 +1148,7 @@ ngx_http_tfs_read_body_handler(ngx_http_request_t *r)
     //size of (boundary string and '\r\n')
     p += boundary->len + 2;
     do {
-        split = ngx_strstrn(p, boundary->data, boundary->len - 1);
+        split = ngx_strstrn(p, (char *)boundary->data, boundary->len - 1);
         if(split == NULL) {
             break;
         }
