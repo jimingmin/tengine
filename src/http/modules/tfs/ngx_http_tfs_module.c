@@ -1065,6 +1065,12 @@ ngx_http_tfs_read_body_handler(ngx_http_request_t *r)
     ngx_int_t          rc;
     ngx_http_tfs_t    *t;
     ngx_connection_t  *c;
+    ngx_chain_t       *l, *body;
+    uint64_t           data_size;
+    ngx_buf_t         *tmp_b;
+    ssize_t            n;
+    u_char            *p, *split;
+    ngx_str_t         *boundary;
 
     c = r->connection;
     t = ngx_http_get_module_ctx(r, ngx_http_tfs_module);
@@ -1093,6 +1099,71 @@ ngx_http_tfs_read_body_handler(ngx_http_request_t *r)
     {
         t->is_large_file = NGX_HTTP_TFS_YES;
     }
+
+    body = r->request_body->bufs;
+
+    data_size = ngx_http_tfs_get_chain_buf_size(body);
+    tmp_b = ngx_create_temp_buf(r->pool, data_size);
+    if (tmp_b == NULL) {
+        ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+        return;
+    }
+
+    while (body) {
+        data_size = ngx_buf_size(body->buf);
+        if (ngx_buf_in_memory(body->buf)) {
+            tmp_b->last = ngx_cpymem(tmp_b->last, body->buf->pos, data_size);
+
+        } else {
+            /* read data from file */
+            n = ngx_read_file(body->buf->file, tmp_b->last, (size_t) data_size,
+                              body->buf->file_pos);
+            if (n != (ssize_t)data_size) {
+                ngx_log_error(NGX_LOG_ERR, t->log, 0,
+                              ngx_read_file_n " read only "
+                              "%z of %uL from \"%s\"",
+                              n, data_size, body->buf->file->name.data);
+                ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+                return;
+            }
+            tmp_b->last += n;
+        }
+        body = body->next;
+    }
+
+    p = tmp_b->pos;
+    if(*p++ != '-' || *p++ != '-') {
+        ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+        return;
+    }
+
+    boundary = &r->headers_in.boundary;
+    if(!ngx_strncmp(p, boundary->data, boundary->len)) {
+        ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+        return;
+    }
+
+    l = ngx_chain_get_free_buf(r->pool, &r->request_body->free);
+
+    //size of (boundary string and '\r\n')
+    p += boundary->len + 2;
+    do {
+        split = ngx_strstrn(p, boundary->data, boundary->len - 1);
+        if(split == NULL) {
+            break;
+        }
+
+        split -= 4;
+
+        //last boundary
+        if(*(split + boundary->len + 4) == '-' && *(split + boundary->len + 5) == '-'
+                && *(split + boundary->len + 6) == '\r' && *(split + boundary->len + 7) == '\n') {
+            p = tmp_b->last;
+        } else if (*split == '-' && *(split + 1) == '-'
+                && *(split + 2) == '\r' && *(split + 3) == '\n') {
+            p = split + boundary->len + 4;
+        }
+    } while(p != tmp_b->last);
 
     if (r->request_body) {
         t->send_body = r->request_body->bufs;
