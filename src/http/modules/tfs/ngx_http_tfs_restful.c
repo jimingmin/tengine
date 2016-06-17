@@ -518,7 +518,8 @@ ngx_http_restful_parse_action_raw(ngx_http_request_t *r,
 {
     ngx_int_t  rc, n, last;
     ngx_str_t  arg_value;
-    u_char     *comma, *size_list, *file_size;
+    u_char     *comma, *size_list;
+    size_t     *file_size;
 
     switch(r->method) {
     case NGX_HTTP_GET:
