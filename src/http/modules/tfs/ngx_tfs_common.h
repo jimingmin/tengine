@@ -44,6 +44,7 @@
 #define NGX_HTTP_TFS_MAX_READ_FILE_SIZE               (512 * 1024)
 #define NGX_HTTP_TFS_USE_LARGE_FILE_SIZE              (15 * 1024 * 1024)
 #define NGX_HTTP_TFS_MAX_SIZE                         (ULLONG_MAX - 1)
+#define NGX_HTTP_TFS_MAX_UPLOAD_FILE_COUNT            20
 
 #define NGX_HTTP_TFS_DEFAULT_BODY_BUFFER_SIZE         (2 * 1024 * 1024)
 #define NGX_HTTP_TFS_ZERO_BUF_SIZE                    (512 * 1024)

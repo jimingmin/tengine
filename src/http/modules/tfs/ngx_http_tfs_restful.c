@@ -516,8 +516,9 @@ static ngx_int_t
 ngx_http_restful_parse_action_raw(ngx_http_request_t *r,
     ngx_http_tfs_restful_ctx_t *ctx)
 {
-    ngx_int_t  rc;
+    ngx_int_t  rc, n, last;
     ngx_str_t  arg_value;
+    u_char     *comma, *size_list, *file_size;
 
     switch(r->method) {
     case NGX_HTTP_GET:
@@ -641,6 +642,37 @@ ngx_http_restful_parse_action_raw(ngx_http_request_t *r,
             }
         }
 
+        if (ngx_http_arg(r, (u_char *) "size_list", 9, &arg_value) == NGX_OK) {
+            if (arg_value.len != 1) {
+                ctx->size_array = ngx_array_create(r->pool, NGX_HTTP_TFS_MAX_UPLOAD_FILE_COUNT, sizeof(size_t));
+
+                last = 0;
+                n = 0;
+                size_list = arg_value.data;
+
+                for (n = 0; /* void */; n++) {
+
+                    if (n >= NGX_HTTP_TFS_MAX_UPLOAD_FILE_COUNT) {
+                        return NGX_HTTP_BAD_REQUEST;
+                    }
+
+                    comma = ngx_strlchr(size_list, size_list + arg_value.len, ',');
+                    if (!comma) {
+                        comma = arg_value.data + arg_value.len;
+                        last = 1;
+                    }
+
+                    file_size = ngx_array_push(ctx->size_array);
+                    *file_size = ngx_atoi(size_list, comma - size_list);
+
+                    if (last) {
+                        break;
+                    }
+
+                    size_list = ++comma;
+                }
+            }
+        }
         ngx_str_set(&ctx->action.msg, "write_file");
         break;
 

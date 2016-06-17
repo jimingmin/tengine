@@ -1878,7 +1878,7 @@ ngx_http_process_request_header(ngx_http_request_t *r)
     		boundary += 8;
     		if (*boundary++ == '=') {
     			r->headers_in.boundary.data = boundary;
-    			r->headers_in.boundary.len = ngx_strlen(boundary) + 1;
+    			r->headers_in.boundary.len = ngx_strlen(boundary);
     		}
     	}
     }

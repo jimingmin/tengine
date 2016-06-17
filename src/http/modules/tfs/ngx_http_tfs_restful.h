@@ -34,6 +34,7 @@ typedef struct {
     uint8_t                      version;
     uint8_t                      file_type;
     ngx_int_t                    large_file;
+    ngx_array_t                  *size_array;
 
     ngx_int_t                    read_stat_type;
     ngx_int_t                    write_meta_segment;
