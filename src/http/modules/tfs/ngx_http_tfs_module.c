@@ -1138,7 +1138,7 @@ ngx_http_tfs_read_body_handler(ngx_http_request_t *r)
     }
 
     boundary = &r->headers_in.boundary;
-    if(!ngx_strncmp(p, boundary->data, boundary->len)) {
+    if(ngx_strncmp(p, boundary->data, boundary->len)) {
         ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
         return;
     }
