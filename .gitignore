@@ -1,0 +1,17 @@
+#工程目录文件
+.idea/
+.cproject
+.project
+
+#版本控制文件
+.svn
+
+#编译后的可执行文件
+bin/*
+
+#二进制文件
+nginx
+
+*.o
+*.lo
+
