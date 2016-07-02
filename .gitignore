@@ -14,4 +14,6 @@ nginx
 
 *.o
 *.lo
-
+objs/*
+src/.settings/*
+nbproject

@@ -1058,6 +1058,25 @@ ngx_http_tfs_block_cache_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     return NGX_CONF_OK;
 }
 
+static u_char *
+ngx_http_tfs_get_file_content_from_body(u_char *body_pos, ngx_str_t *boundary, size_t file_size)
+{
+    u_char *flag;
+
+    flag = ngx_strstrn(body_pos, (char *)boundary->data, boundary->len);
+    if(flag == NULL) {
+        return NULL;
+    }
+
+    body_pos = flag;
+
+    flag = ngx_strstrn(body_pos, (char *)"\r\n\r\n", 3);
+    if(flag == NULL) {
+        return NULL;
+    }
+
+    return flag + 4;
+}
 
 static void
 ngx_http_tfs_read_body_handler(ngx_http_request_t *r)
@@ -1069,8 +1088,11 @@ ngx_http_tfs_read_body_handler(ngx_http_request_t *r)
     uint64_t           data_size;
     ngx_buf_t         *tmp_b;
     ssize_t            n;
-    u_char            *p, *split;
+    u_char            *p;
     ngx_str_t         *boundary;
+    ngx_array_t       *size_array;
+    uint8_t           file_count;
+    size_t            file_size;
 
     c = r->connection;
     t = ngx_http_get_module_ctx(r, ngx_http_tfs_module);
@@ -1138,32 +1160,15 @@ ngx_http_tfs_read_body_handler(ngx_http_request_t *r)
     }
 
     boundary = &r->headers_in.boundary;
-    if(ngx_strncmp(p, boundary->data, boundary->len)) {
-        ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
-        return;
-    }
 
     l = ngx_chain_get_free_buf(r->pool, &r->request_body->free);
 
-    //size of (boundary string and '\r\n')
-    p += boundary->len + 2;
-    do {
-        split = ngx_strstrn(p, (char *)boundary->data, boundary->len - 1);
-        if(split == NULL) {
-            break;
-        }
-
-        split -= 4;
-
-        //last boundary
-        if(*(split + boundary->len + 4) == '-' && *(split + boundary->len + 5) == '-'
-                && *(split + boundary->len + 6) == '\r' && *(split + boundary->len + 7) == '\n') {
-            p = tmp_b->last;
-        } else if (*split == '-' && *(split + 1) == '-'
-                && *(split + 2) == '\r' && *(split + 3) == '\n') {
-            p = split + boundary->len + 4;
-        }
-    } while(p != tmp_b->last);
+    size_array = t->r_ctx.size_array;
+    for(file_count = 0; file_count < size_array->nalloc; file_count++) {
+        file_size = *(size_t *) ((u_char *)size_array->elts + (size_array->size * file_count));
+        //½âÎöfile content
+        p = ngx_http_tfs_get_file_content_from_body(p, boundary, file_size);
+    }
 
     if (r->request_body) {
         t->send_body = r->request_body->bufs;
