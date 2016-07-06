@@ -31,6 +31,9 @@ ngx_chain_t *ngx_http_tfs_json_custom_file_info(ngx_http_tfs_json_gen_t *tj_gen,
 ngx_chain_t *ngx_http_tfs_json_file_name(ngx_http_tfs_json_gen_t *tj_gen,
     ngx_str_t *file_name);
 
+ngx_chain_t *ngx_http_tfs_json_file_name_list(ngx_http_tfs_json_gen_t *tj_gen,
+    ngx_array_t *file_name_list);
+
 ngx_chain_t *ngx_http_tfs_json_raw_file_stat(ngx_http_tfs_json_gen_t *tj_gen,
     u_char *file_name, uint32_t block_id,
     ngx_http_tfs_raw_file_stat_t *file_stat);

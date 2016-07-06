@@ -172,6 +172,49 @@ ngx_http_tfs_json_file_name(ngx_http_tfs_json_gen_t *tj_gen,
     return cl;
 }
 
+ngx_chain_t *
+ngx_http_tfs_json_file_name_list(ngx_http_tfs_json_gen_t *tj_gen,
+    ngx_array_t *file_name_list)
+{
+    size_t        size;
+    yajl_gen      g;
+    ngx_buf_t    *b;
+    ngx_chain_t  *cl;
+    ngx_uint_t    i;
+    ngx_str_t    *file_name;
+
+    g = tj_gen->gen;
+    size = 0;
+
+    yajl_gen_map_open(g);
+    yajl_gen_string(g, (const unsigned char *) "TFS_FILE_NAME", 13);
+    yajl_gen_array_open(g);
+    for(i = 0; i < file_name_list->nelts; ++i) {
+        file_name = (ngx_str_t *)((u_char *)file_name_list->elts + file_name_list->size * i);
+        yajl_gen_string(g, (const unsigned char *) file_name->data, file_name->len);
+    }
+    yajl_gen_array_close(g);
+    yajl_gen_map_close(g);
+
+    cl = ngx_alloc_chain_link(tj_gen->pool);
+    if (cl == NULL) {
+        return NULL;
+    }
+    cl->next = NULL;
+
+    b = ngx_calloc_buf(tj_gen->pool);
+    if (b == NULL) {
+        return NULL;
+    }
+    yajl_gen_get_buf(g, (const unsigned char **) &b->pos, &size);
+    b->last = b->pos + size;
+    b->end = b->last;
+    b->temporary = 1;
+    b->flush = 1;
+    /* b->last_buf = 1; */
+    cl->buf = b;
+    return cl;
+}
 
 ngx_chain_t *
 ngx_http_tfs_json_raw_file_stat(ngx_http_tfs_json_gen_t *tj_gen,
