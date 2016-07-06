@@ -666,8 +666,7 @@ ngx_http_restful_parse_action_raw(ngx_http_request_t *r,
                     file_size = ngx_array_push(ctx->size_array);
                     *file_size = ngx_atoi(size_list, comma - size_list);
                     if(*file_size < NGX_HTTP_TFS_MIN_WRITE_FILE_SIZE || *file_size > NGX_HTTP_TFS_USE_LARGE_FILE_SIZE) {
-                        ngx_http_finalize_request(r, NGX_HTTP_BAD_REQUEST);
-                        break;
+                        return NGX_HTTP_BAD_REQUEST;
                     }
 
                     if (last) {
