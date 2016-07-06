@@ -333,7 +333,8 @@ ngx_http_tfs_name_server_create_message(ngx_http_tfs_t *t)
             if (!t->parent
                 && !t->is_rolling_back
                 && (t->r_ctx.version == 2
-                 || (t->is_large_file && !t->is_process_meta_seg)))
+                 || (t->is_large_file && !t->is_process_meta_seg)
+                 || t->write_multi_file))
             {
                 cl = ngx_http_tfs_create_batch_block_info_message(t);
 
@@ -419,7 +420,8 @@ ngx_http_tfs_name_server_parse_message(ngx_http_tfs_t *t)
             if (!t->parent
                 && !t->is_rolling_back
                 && (t->r_ctx.version == 2
-                    || (t->is_large_file && !t->is_process_meta_seg)))
+                    || (t->is_large_file && !t->is_process_meta_seg)
+                    || (t->write_multi_file)))
             {
                 rc = ngx_http_tfs_parse_batch_block_info_message(t,
                                                                  segment_data);
@@ -833,6 +835,8 @@ ngx_http_tfs_parse_batch_block_info_message(ngx_http_tfs_t *t,
         segment_data[j].ds_retry = 0;
     }
 
+    t->file_name_list = ngx_array_create(t->pool, resp->block_count, sizeof(ngx_str_t));
+    
     /* check if all semgents complete */
     if (t->file.open_mode & NGX_HTTP_TFS_OPEN_MODE_READ) {
         complete_count = 0;
