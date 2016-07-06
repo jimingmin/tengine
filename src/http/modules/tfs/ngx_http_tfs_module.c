@@ -1059,7 +1059,7 @@ ngx_http_tfs_block_cache_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 }
 
 static u_char *
-ngx_http_tfs_get_file_content_from_body(u_char *body_pos, ngx_str_t *boundary, size_t file_size)
+ngx_http_tfs_get_file_content_from_body(u_char *body_pos, ngx_str_t *boundary)
 {
     u_char *flag;
 
@@ -1156,7 +1156,7 @@ ngx_http_tfs_read_body_handler(ngx_http_request_t *r)
 
         p = tmp_b->pos;
         if(*p++ != '-' || *p++ != '-') {
-            ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+            ngx_http_finalize_request(r, NGX_HTTP_BAD_REQUEST);
             return;
         }
 
@@ -1169,20 +1169,27 @@ ngx_http_tfs_read_body_handler(ngx_http_request_t *r)
             for(file_count = 0; file_count < size_array->nelts; file_count++) {
                 file_size = *(size_t *) ((u_char *)size_array->elts + (size_array->size * file_count));
                 //get file content
-                p = ngx_http_tfs_get_file_content_from_body(p, boundary, file_size);
+                p = ngx_http_tfs_get_file_content_from_body(p, boundary);
                 if(p == NULL) {
-                    break;
+                    ngx_http_finalize_request(r, NGX_HTTP_BAD_REQUEST);
+                    return;
                 }
 
+                //file_size is illegal or incorrect
+                if(p + file_size > tmp_b->last) {
+                    ngx_http_finalize_request(r, NGX_HTTP_BAD_REQUEST);
+                    return;
+                }
+                
                 f_content_tmp = ngx_chain_get_free_buf(t->pool, &t->free_bufs);
                 if(f_content_tmp == NULL) {
                     ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
                     return;
                 }
-                f_content_tmp->buf->pos = p;
-                f_content_tmp->buf->last = p + file_size;
-                f_content_tmp->buf->start = f_content_tmp->buf->pos;
-                f_content_tmp->buf->end = f_content_tmp->buf->last;
+                f_content_tmp->buf->start = p;
+                f_content_tmp->buf->end = p + file_size;
+                f_content_tmp->buf->pos = f_content_tmp->buf->start;
+                f_content_tmp->buf->last = f_content_tmp->buf->end;
                 f_content_tmp->buf->temporary = 1;
 
                 file_content = ngx_array_push(t->r_ctx.files_content);
