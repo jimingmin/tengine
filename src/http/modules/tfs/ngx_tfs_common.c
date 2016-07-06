@@ -561,6 +561,7 @@ ngx_int_t
 ngx_http_tfs_set_output_file_name(ngx_http_tfs_t *t)
 {
     ngx_chain_t  *cl, **ll;
+    ngx_str_t    *file_name;
 
     if (t->json_output == NULL) {
         t->json_output = ngx_http_tfs_json_init(t->log, t->pool);
@@ -614,12 +615,27 @@ ngx_http_tfs_set_output_file_name(ngx_http_tfs_t *t)
         }
     }
 
-    cl = ngx_http_tfs_json_file_name(t->json_output, &t->file_name);
-    if (cl == NULL) {
-        return NGX_ERROR;
-    }
+    //save writen file
+    if(t->file_name_list->size > 0) {
+        file_name = ngx_array_push(t->file_name_list);
+        ngx_memcpy(file_name, &t->file_name, sizeof(ngx_str_t));
+        if(t->file_name_list->nelts >= t->r_ctx.size_array->nelts) {
+            cl = ngx_http_tfs_json_file_name_list(t->json_output, t->file_name_list);
+            if (cl == NULL) {
+                return NGX_ERROR;
+            }
 
-    *ll = cl;
+            *ll = cl;
+        }
+    } else {
+        cl = ngx_http_tfs_json_file_name(t->json_output, &t->file_name);
+        if (cl == NULL) {
+            return NGX_ERROR;
+        }
+
+        *ll = cl;
+    }
+    
     return NGX_OK;
 }
 
