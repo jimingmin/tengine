@@ -182,14 +182,21 @@ ngx_http_tfs_init(ngx_http_tfs_t *t)
                         t->send_body = t->meta_segment_data;
                     }
 
-                    t->file.segment_data[0].data = t->send_body;
-                    t->file.segment_data[0].segment_info.size =
-                                  ngx_http_tfs_get_chain_buf_size(t->send_body);
-                    t->file.left_length =
-                                      t->file.segment_data[0].segment_info.size;
-                    t->file.segment_data[0].oper_size =
-                                        ngx_min(t->file.left_length,
-                                                NGX_HTTP_TFS_MAX_FRAGMENT_SIZE);
+                    if(t->write_multi_file) {
+                        rc = ngx_http_tfs_get_segment_for_multi_file_write(t);
+                        if (rc == NGX_ERROR) {
+                            return NGX_ERROR;
+                        }
+                    } else {
+                        t->file.segment_data[0].data = t->send_body;
+                        t->file.segment_data[0].segment_info.size =
+                                      ngx_http_tfs_get_chain_buf_size(t->send_body);
+                        t->file.left_length =
+                                          t->file.segment_data[0].segment_info.size;
+                        t->file.segment_data[0].oper_size =
+                                            ngx_min(t->file.left_length,
+                                                    NGX_HTTP_TFS_MAX_FRAGMENT_SIZE);
+                    }
 
                 } else {
                     /* set oper size && offset,

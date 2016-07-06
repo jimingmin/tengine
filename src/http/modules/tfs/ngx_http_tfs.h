@@ -271,6 +271,7 @@ struct ngx_http_tfs_s {
 
     /* final file name */
     ngx_str_t                      file_name;
+    ngx_array_t                    *file_name_list;
 
     ngx_int_t                      state;
 
@@ -340,6 +341,7 @@ struct ngx_http_tfs_s {
     unsigned                       use_dedup:1;
     unsigned                       is_stat_dup_file:1;
     unsigned                       is_large_file:1;
+    unsigned                       write_multi_file:1;
     unsigned                       is_process_meta_seg:1;
     unsigned                       retry_curr_ns:1;
     unsigned                       request_timeout:1;
