@@ -417,6 +417,7 @@ ngx_http_tfs_create_write_message(ngx_http_tfs_t *t,
         }
 
         ngx_memcpy(b, body->buf, sizeof(ngx_buf_t));
+        b->temporary = 1;
 
         if (body_size > NGX_HTTP_TFS_MAX_FRAGMENT_SIZE) {
             /* need more writes*/
@@ -1098,11 +1099,15 @@ ngx_http_tfs_get_meta_segment(ngx_http_tfs_t *t)
 {
     ngx_http_tfs_segment_info_t  *segment_info;
 
-    t->file.segment_count = 1;
+    if(t->r_ctx.size_array != NULL) {
+        t->file.segment_count = t->r_ctx.size_array->nelts;
+    } else {
+    	t->file.segment_count = 1;
+    }
 
     if (t->file.segment_data == NULL) {
         t->file.segment_data = ngx_pcalloc(t->pool,
-                                           sizeof(ngx_http_tfs_segment_data_t));
+                                           sizeof(ngx_http_tfs_segment_data_t) * t->file.segment_count);
         if (t->file.segment_data == NULL) {
             return NGX_ERROR;
         }
@@ -1574,6 +1579,33 @@ ngx_http_tfs_get_segment_for_write(ngx_http_tfs_t *t)
     return NGX_OK;
 }
 
+ngx_int_t
+ngx_http_tfs_get_segment_for_multi_file_write(ngx_http_tfs_t *t)
+{
+    ngx_chain_t         *file_content;
+    ngx_int_t           seg_count, i;
+    if (t->r_ctx.size_array == NULL) {
+        return NGX_ERROR;
+    }
+
+    seg_count = t->file.segment_count;
+    for(i = 0; i < seg_count; ++i) {
+        file_content = *(ngx_chain_t **)((u_char *)t->r_ctx.files_content->elts + (t->r_ctx.files_content->size * i));
+        t->file.segment_data[i].data = file_content;
+        t->file.segment_data[i].segment_info.size = file_content->buf->last - file_content->buf->pos;
+        t->file.segment_data[i].oper_size = ngx_min(t->file.segment_data[i].segment_info.size,
+                                NGX_HTTP_TFS_MAX_FRAGMENT_SIZE);
+        
+//        data_size += t->file.segment_data[i].segment_info.size;
+    }
+    
+//    t->file.segment_count = seg_count;
+    if(seg_count > 0) {
+        t->file.left_length = t->file.segment_data[0].segment_info.size;
+    }
+    
+    return NGX_OK;
+}
 
 ngx_int_t
 ngx_http_tfs_get_segment_for_delete(ngx_http_tfs_t *t)

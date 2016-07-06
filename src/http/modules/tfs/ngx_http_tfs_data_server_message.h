@@ -20,6 +20,7 @@ ngx_int_t ngx_http_tfs_get_meta_segment(ngx_http_tfs_t *t);
 ngx_int_t ngx_http_tfs_set_meta_segment_data(ngx_http_tfs_t *t);
 ngx_int_t ngx_http_tfs_parse_meta_segment(ngx_http_tfs_t *t, ngx_chain_t *data);
 ngx_int_t ngx_http_tfs_get_segment_for_write(ngx_http_tfs_t *t);
+ngx_int_t ngx_http_tfs_get_segment_for_multi_file_write(ngx_http_tfs_t *t);
 
 ngx_int_t ngx_http_tfs_get_segment_for_read(ngx_http_tfs_t *t);
 ngx_int_t ngx_http_tfs_get_segment_for_delete(ngx_http_tfs_t *t);
