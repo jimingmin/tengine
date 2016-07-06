@@ -989,22 +989,34 @@ ngx_http_tfs_process_ds(ngx_http_tfs_t *t)
                     return NGX_OK;
                 }
 
-                t->state = NGX_HTTP_TFS_STATE_WRITE_DONE;
-                rc = ngx_http_tfs_set_output_file_name(t);
-                if (rc == NGX_ERROR) {
-                    return NGX_ERROR;
+                if(t->write_multi_file && t->file.segment_index < t->file.segment_count) {
+                    t->file.left_length = t->file.segment_data[t->file.segment_index].oper_size;
+                    t->state = NGX_HTTP_TFS_STATE_WRITE_CREATE_FILE_NAME;
+                    t->r_ctx.fsname.file.block_id = segment_data->segment_info.block_id;
+                    rc = ngx_http_tfs_set_output_file_name(t);
+                    if (rc == NGX_ERROR) {
+                        return NGX_ERROR;
+                    }
+                    return NGX_OK;
+                } else {
+                    t->state = NGX_HTTP_TFS_STATE_WRITE_DONE;
+                    t->r_ctx.fsname.file.block_id = segment_data->segment_info.block_id;
+                    rc = ngx_http_tfs_set_output_file_name(t);
+                    if (rc == NGX_ERROR) {
+                        return NGX_ERROR;
+                    }
+                    /* when new tfs file is saved,
+                    * do not care saving tair is success or not
+                    */
+                    if (t->use_dedup) {
+                        r = t->data;
+                        t->dedup_ctx.file_data = r->request_body->bufs;
+                        t->dedup_ctx.file_ref_count += 1;
+                        t->decline_handler = ngx_http_tfs_set_duplicate_info;
+                        return NGX_DECLINED;
+                    }
+                    return NGX_DONE;
                 }
-                /* when new tfs file is saved,
-                 * do not care saving tair is success or not
-                 */
-                if (t->use_dedup) {
-                    r = t->data;
-                    t->dedup_ctx.file_data = r->request_body->bufs;
-                    t->dedup_ctx.file_ref_count += 1;
-                    t->decline_handler = ngx_http_tfs_set_duplicate_info;
-                    return NGX_DECLINED;
-                }
-                return NGX_DONE;
             }
             break;
 
