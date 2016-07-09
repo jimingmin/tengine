@@ -44,7 +44,6 @@
 #define NGX_HTTP_TFS_MAX_READ_FILE_SIZE               (512 * 1024)
 #define NGX_HTTP_TFS_USE_LARGE_FILE_SIZE              (15 * 1024 * 1024)
 #define NGX_HTTP_TFS_MAX_SIZE                         (ULLONG_MAX - 1)
-#define NGX_HTTP_TFS_MAX_UPLOAD_FILE_COUNT            20
 #define NGX_HTTP_TFS_MIN_WRITE_FILE_SIZE              100
 
 #define NGX_HTTP_TFS_DEFAULT_BODY_BUFFER_SIZE         (2 * 1024 * 1024)
@@ -74,7 +73,7 @@
     (sizeof("Mon, 28 Sep 1970 06:00:00 GMT") - 1)
 
 #define NGX_HTTP_TFS_MAX_FRAGMENT_SIZE                 (2 * 1024 * 1024)
-#define NGX_HTTP_TFS_MAX_BATCH_COUNT                   8
+#define NGX_HTTP_TFS_MAX_BATCH_COUNT                   20
 
 
 #define NGX_HTTP_TFS_MUR_HASH_SEED                     97
