@@ -684,11 +684,11 @@ ngx_http_tfs_process_ns(ngx_http_tfs_t *t)
     }
 
     addr = ngx_http_tfs_select_data_server(t,
-                                  &t->file.segment_data[t->file.segment_index]);
+                              &t->file.segment_data[t->file.segment_index]);
     if (addr == NULL) {
         return NGX_ERROR;
     }
-
+    
     ngx_http_tfs_peer_set_addr(t->pool,
                                &t->tfs_peer_servers[NGX_HTTP_TFS_DATA_SERVER],
                                addr);
@@ -823,6 +823,7 @@ ngx_http_tfs_process_ds(ngx_http_tfs_t *t)
     ngx_http_tfs_header_t           *header;
     ngx_http_tfs_segment_data_t     *segment_data;
     ngx_http_tfs_peer_connection_t  *tp;
+    ngx_http_tfs_inet_t             *addr;
 
     header = (ngx_http_tfs_header_t *) t->header;
     tp = t->tfs_peer;
@@ -997,6 +998,15 @@ ngx_http_tfs_process_ds(ngx_http_tfs_t *t)
                     if (rc == NGX_ERROR) {
                         return NGX_ERROR;
                     }
+                    
+                    //reselect data server
+                    addr = ngx_http_tfs_select_data_server(t, &t->file.segment_data[t->file.segment_index]);
+                    if (addr == NULL) {
+                        return NGX_ERROR;
+                    }
+                    ngx_http_tfs_peer_set_addr(t->pool,
+                           &t->tfs_peer_servers[NGX_HTTP_TFS_DATA_SERVER],
+                           addr);
                     return NGX_OK;
                 } else {
                     t->state = NGX_HTTP_TFS_STATE_WRITE_DONE;
