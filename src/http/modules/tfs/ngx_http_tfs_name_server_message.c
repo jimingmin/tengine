@@ -798,7 +798,7 @@ ngx_http_tfs_parse_batch_block_info_message(ngx_http_tfs_t *t,
         for (k = 0; k < block_info->ds_count; k++) {
             block_info->ds_addrs[k].ip = *(uint32_t *) p;
             block_info->ds_addrs[k].port = *(uint32_t *) (p + sizeof(uint32_t));
-
+            
             p += sizeof(uint32_t) * 2;
         }
 
@@ -813,11 +813,13 @@ ngx_http_tfs_parse_batch_block_info_message(ngx_http_tfs_t *t,
             p += sizeof(int64_t);
         }
 
-        ngx_log_debug5(NGX_LOG_DEBUG_HTTP, t->log, 0,
+        ngx_log_error(NGX_LOG_DEBUG, t->log, 0,
                        "batch get block info from nameserver: "
-                       "%V, block id: %uD, "
+                       "%V, block id: %uD, ip : %s, port : %d,"
                        "ds count: %uD, version: %D, lease id: %D",
                        &t->name_server_addr_text, block_id,
+                       inet_ntoa(*(struct in_addr*)&block_info->ds_addrs[0].ip),
+                       block_info->ds_addrs[0].port,
                        block_info->ds_count,
                        block_info->version, block_info->lease_id);
 
