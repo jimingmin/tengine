@@ -465,7 +465,7 @@ ngx_http_tfs_connect(ngx_http_tfs_t *t)
                   p->name, tp->peer_addr_text);
 
     rc = ngx_event_connect_peer(p);
-
+    
     if (rc == NGX_ERROR || rc == NGX_BUSY || rc == NGX_DECLINED) {
         ngx_log_error(NGX_LOG_ERR, p->log, 0,
                       "connect to (%V: %s) failed", p->name,
@@ -493,6 +493,11 @@ ngx_http_tfs_connect(ngx_http_tfs_t *t)
         }
     }
 
+    //save peer address to connection
+    c->sockaddr = ngx_palloc(c->pool, p->socklen);
+    ngx_memcpy(c->sockaddr, p->sockaddr, p->socklen);
+    c->socklen = p->socklen;
+    
     c->log = r->connection->log;
     c->pool->log = c->log;
     c->read->log = c->log;
