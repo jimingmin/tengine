@@ -99,7 +99,7 @@ ngx_http_connection_pool_get(ngx_peer_connection_t *pc, void *data)
     {
         item = ngx_queue_data(q, ngx_http_connection_pool_elt_t, queue);
         c = item->connection;
-
+        
         if (ngx_memn2cmp((u_char *) &item->sockaddr, (u_char *) pc->sockaddr,
                          item->socklen, pc->socklen)
             == 0)
@@ -138,6 +138,8 @@ ngx_http_connection_pool_free(ngx_peer_connection_t *pc,
     ngx_uint_t         hash, bucket_id;
     ngx_queue_t       *q, *cache, *free;
     ngx_connection_t  *c;
+    struct sockaddr    *sockaddr;
+    socklen_t           socklen;
 
     ngx_log_debug0(NGX_LOG_DEBUG_HTTP, pc->log, 0, "free keepalive peer");
 
@@ -173,7 +175,15 @@ ngx_http_connection_pool_free(ngx_peer_connection_t *pc,
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, pc->log, 0,
                    "free keepalive peer: saving connection %p", c);
 
-    hash = ngx_murmur_hash2((u_char *) pc->sockaddr, pc->socklen);
+    if(c->sockaddr && c->socklen > 0) {
+        sockaddr = c->sockaddr;
+        socklen = c->socklen;
+    } else {
+        sockaddr = pc->sockaddr;
+        socklen = pc->socklen;
+    }
+    
+    hash = ngx_murmur_hash2((u_char *) sockaddr, socklen);
     bucket_id = hash % p->bucket_count;
 
     cache = &p->cache[bucket_id];
@@ -218,8 +228,8 @@ ngx_http_connection_pool_free(ngx_peer_connection_t *pc,
     c->write->log = ngx_cycle->log;
     c->pool->log = ngx_cycle->log;
 
-    item->socklen = pc->socklen;
-    ngx_memcpy(&item->sockaddr, pc->sockaddr, pc->socklen);
+    item->socklen = socklen;
+    ngx_memcpy(&item->sockaddr, sockaddr, socklen);
 
     if (c->read->ready) {
         ngx_http_connection_pool_close_handler(c->read);
