@@ -645,7 +645,7 @@ ngx_http_restful_parse_action_raw(ngx_http_request_t *r,
 
         if (ngx_http_arg(r, (u_char *) "size_list", 9, &arg_value) == NGX_OK) {
             if (arg_value.len != 1) {
-                ctx->size_array = ngx_array_create(r->pool, NGX_HTTP_TFS_MAX_UPLOAD_FILE_COUNT, sizeof(size_t));
+                ctx->size_array = ngx_array_create(r->pool, NGX_HTTP_TFS_MAX_BATCH_COUNT, sizeof(size_t));
 
                 last = 0;
                 n = 0;
@@ -653,7 +653,7 @@ ngx_http_restful_parse_action_raw(ngx_http_request_t *r,
 
                 for (n = 0; /* void */; n++) {
 
-                    if (n >= NGX_HTTP_TFS_MAX_UPLOAD_FILE_COUNT) {
+                    if (n >= NGX_HTTP_TFS_MAX_BATCH_COUNT) {
                         return NGX_HTTP_BAD_REQUEST;
                     }
 
