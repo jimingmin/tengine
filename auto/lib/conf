@@ -66,6 +66,10 @@ if [ $USE_LIBGD = YES ]; then
     . auto/lib/libgd/conf
 fi
 
+if [ $USE_LIBGM = YES ]; then
+    . auto/lib/libgm/conf
+fi
+
 if [ $USE_PERL = YES ]; then
     . auto/lib/perl/conf
 fi
