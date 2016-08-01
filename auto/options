@@ -125,6 +125,7 @@ NGX_ALL_MODULES="
     ngx_http_charset_filter_module
     ngx_http_xslt_filter_module
     ngx_http_image_filter_module
+    ngx_http_graphics_filter_module
     ngx_http_sub_filter_module
     ngx_http_addition_filter_module
     ngx_http_userid_filter_module
@@ -215,6 +216,7 @@ HTTP_POSTPONE=NO
 HTTP_REALIP=NO
 HTTP_XSLT=NO
 HTTP_IMAGE_FILTER=NO
+HTTP_GRAPHICS_FILTER=NO
 HTTP_SUB=NO
 HTTP_ADDITION=NO
 HTTP_DAV=NO
@@ -274,6 +276,7 @@ HTTP_REQ_STATUS=YES
 # shared modules
 HTTP_XSLT_SHARED=NO
 HTTP_IMAGE_FILTER_SHARED=NO
+HTTP_GRAPHICS_FILTER_SHARED=NO
 HTTP_SUB_SHARED=NO
 HTTP_ADDITION_SHARED=NO
 HTTP_CONCAT_SHARED=NO
@@ -359,6 +362,7 @@ LIBYAJL_LIB=
 
 USE_LIBXSLT=NO
 USE_LIBGD=NO
+USE_LIBGM=NO
 
 NGX_GOOGLE_PERFTOOLS=NO
 NGX_CPP_TEST=NO
@@ -455,6 +459,8 @@ do
                                                    HTTP_XSLT_SHARED=NO               ;;
         --with-http_image_filter_module)           HTTP_IMAGE_FILTER=YES
                                                    HTTP_IMAGE_FILTER_SHARED=NO       ;;
+    	--with-http_graphics_filter_module)        HTTP_GRAPHICS_FILTER=YES
+                                                   HTTP_GRAPHICS_FILTER_SHARED=NO    ;;
         --with-http_geoip_module)                  HTTP_GEOIP=YES
                                                    HTTP_GEOIP_SHARED=NO              ;;
         --with-http_sub_module)                    HTTP_SUB=YES
@@ -488,6 +494,8 @@ do
                                                    HTTP_XSL=NO                       ;;
         --with-http_image_filter_module=shared)    HTTP_IMAGE_FILTER_SHARED=YES
                                                    HTTP_IMAGE_FILTER=NO              ;;
+       	--with-http_graphics_filter_module=shared) HTTP_GRAPHICS_FILTER_SHARED=YES
+                                                   HTTP_GRAPHICS_FILTER=NO           ;;
         --with-http_geoip_module=shared)           HTTP_GEOIP_SHARED=YES
                                                    HTTP_GEOIP=NO                     ;;
         --with-http_sub_module=shared)             HTTP_SUB_SHARED=YES
@@ -770,6 +778,7 @@ cat << END
   --with-http_addition_module        enable ngx_http_addition_filter_module
   --with-http_xslt_module            enable ngx_http_xslt_filter_module
   --with-http_image_filter_module    enable ngx_http_image_filter_module
+  --with-http_graphics_filter_module enable ngx_http_graphics_filter_module
   --with-http_geoip_module           enable ngx_http_geoip_module
   --with-http_sub_module             enable ngx_http_sub_filter_module
   --with-http_dav_module             enable ngx_http_dav_module
@@ -789,6 +798,8 @@ cat << END
   --with-http_xslt_module=shared     enable ngx_http_xslt_filter_module (shared)
   --with-http_image_filter_module=shared
                                      enable ngx_http_image_filter_module (shared)
+  --with-http_graphics_filter_module=shared
+                                     enable ngx_http_graphics_filter_module (shared)
   --with-http_geoip_module=shared    enable ngx_http_geoip_module
   --with-http_sub_module=shared      enable ngx_http_sub_filter_module (shared)
   --with-http_flv_module=shared      enable ngx_http_flv_module (shared)
@@ -979,6 +990,7 @@ fi
 if [ $NGX_SHARED_ALL_MODULES = YES ]; then
     HTTP_XSLT_SHARED=YES
     HTTP_IMAGE_FILTER_SHARED=YES
+    HTTP_GRAPHICS_FILTER_SHARED=YES
     HTTP_SUB_SHARED=YES
     HTTP_ADDITION_SHARED=YES
     HTTP_CONCAT_SHARED=YES
@@ -1017,6 +1029,7 @@ if [ $NGX_SHARED_ALL_MODULES = YES ]; then
 
     HTTP_XSLT=NO
     HTTP_IMAGE_FILTER=NO
+    HTTP_GRAPHICS_FILTER=NO
     HTTP_SUB=NO
     HTTP_ADDITION=NO
     HTTP_CONCAT=NO
@@ -1064,6 +1077,7 @@ elif [ $NGX_STATIC_ALL_MODULES = YES ]; then
     HTTP_REALIP=YES
     HTTP_XSLT=YES
     HTTP_IMAGE_FILTER=YES
+    HTTP_GRAPHICS_FILTER=YES
     HTTP_SUB=YES
     HTTP_ADDITION=YES
     HTTP_DAV=YES
@@ -1116,6 +1130,7 @@ elif [ $NGX_STATIC_ALL_MODULES = YES ]; then
 
     HTTP_XSLT_SHARED=NO
     HTTP_IMAGE_FILTER_SHARED=NO
+    HTTP_GRAPHICS_FILTER_SHARED=NO
     HTTP_SUB_SHARED=NO
     HTTP_ADDITION_SHARED=NO
     HTTP_CONCAT_SHARED=NO
