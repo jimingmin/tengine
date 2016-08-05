@@ -25,6 +25,7 @@
 #define NGX_HTTP_GRAPHICS_GIF       2
 #define NGX_HTTP_GRAPHICS_PNG       3
 #define NGX_HTTP_GRAPHICS_WEBP      4
+#define NGX_HTTP_GRAPHICS_BMP       5
 
 #define NGX_HTTP_GRAPHICS_OFFSET_CENTER    0
 #define NGX_HTTP_GRAPHICS_OFFSET_LEFT      1
@@ -385,6 +386,11 @@ ngx_http_graphics_test(ngx_http_request_t *r, ngx_chain_t *in)
         /* WEBP */
         
         return NGX_HTTP_GRAPHICS_WEBP;
+    } else if(p[0] == 'B' && p[1] == 'M')
+    {
+        /* BMP */
+        
+        return NGX_HTTP_GRAPHICS_BMP;
     }
 
     return NGX_HTTP_GRAPHICS_NONE;
@@ -682,6 +688,14 @@ ngx_http_graphics_size(ngx_http_request_t *r, ngx_http_graphics_filter_ctx_t *ct
         height = p[28] * 256 + p[29];
         
         break;
+    case NGX_HTTP_GRAPHICS_BMP:
+        if(ctx->length < 54) {
+            return NGX_DECLINED;
+        }
+        
+        width = p[18] + p[19] * 256 + p[20] * 256 * 256 + p[21] * 256 * 256 * 256;
+        height = p[22] + p[23] * 256 + p[24] * 256 * 256 + p[25] * 256 * 256 * 256;
+        break;
     default:
 
         return NGX_DECLINED;
@@ -807,14 +821,14 @@ ngx_http_graphics_asis(ngx_http_request_t *r, ngx_http_graphics_filter_ctx_t *ct
 static ngx_int_t
 ngx_http_graphics_want_origin_file_format(ngx_str_t *uri) {
     if(uri == NULL) {
-        return 0;
-    }
-    
-    if(ngx_strstr(uri->data, "! HTTP") != NULL) {
         return 1;
     }
     
-    return 0;
+    if(ngx_strstr(uri->data, "! HTTP") != NULL) {
+        return 0;
+    }
+    
+    return 1;
 }
 
 static void *
@@ -1313,7 +1327,8 @@ ngx_http_graphics_source(ngx_http_request_t *r, ngx_http_graphics_filter_ctx_t *
     wand = NULL;
 
     if(ctx->type == NGX_HTTP_GRAPHICS_JPEG || ctx->type == NGX_HTTP_GRAPHICS_GIF
-            || ctx->type == NGX_HTTP_GRAPHICS_PNG || ctx->type == NGX_HTTP_GRAPHICS_WEBP) {
+            || ctx->type == NGX_HTTP_GRAPHICS_PNG || ctx->type == NGX_HTTP_GRAPHICS_WEBP
+            || ctx->type == NGX_HTTP_GRAPHICS_BMP) {
         wand = NewMagickWand();
         
         if(MagickReadImageBlob(wand, ctx->image, ctx->image_size) != 1) {
