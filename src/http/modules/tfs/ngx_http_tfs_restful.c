@@ -518,8 +518,11 @@ ngx_http_restful_parse_action_raw(ngx_http_request_t *r,
 {
     ngx_int_t  rc, n, last;
     ngx_str_t  arg_value;
-    u_char     *comma, *size_list;
+    u_char     *comma, *colon, *size_list, *file_list;
     size_t     *file_size;
+    ngx_array_t         *filename_array;
+    ngx_hash_key_t      *filename_key;
+    ngx_http_tfs_upload_file_info_t     *upload_file_info;
 
     switch(r->method) {
     case NGX_HTTP_GET:
@@ -675,8 +678,88 @@ ngx_http_restful_parse_action_raw(ngx_http_request_t *r,
 
                     size_list = ++comma;
                 }
+                
+                ctx->file_count = ctx->size_array->nelts;
             }
         }
+        
+        if (ngx_http_arg(r, (u_char *) "file_list", 9, &arg_value) == NGX_OK) {
+            if (arg_value.len != 1) {
+                ctx->size_array = ngx_array_create(r->pool, NGX_HTTP_TFS_MAX_BATCH_COUNT, sizeof(size_t));
+                
+                filename_array = ngx_array_create(r->pool, NGX_HTTP_TFS_MAX_BATCH_COUNT, sizeof(ngx_hash_key_t));
+
+                last = 0;
+                n = 0;
+                file_list = arg_value.data;
+
+                for (n = 0; /* void */; n++) {
+
+                    if (n >= NGX_HTTP_TFS_MAX_BATCH_COUNT) {
+                        return NGX_HTTP_BAD_REQUEST;
+                    }
+
+                    comma = ngx_strlchr(file_list, file_list + arg_value.len, ',');
+                    if (!comma) {
+                        comma = arg_value.data + arg_value.len;
+                        last = 1;
+                    }
+
+                    colon = ngx_strlchr(file_list, comma, ':');
+                    if (!colon) {
+                        return NGX_HTTP_BAD_REQUEST;
+                    }
+                    
+                    filename_key = ngx_array_push(filename_array);
+                    
+                    ngx_str_set_var(&filename_key->key, file_list, colon - file_list);
+                    filename_key->key_hash = ngx_hash_key_lc(filename_key->key.data, filename_key->key.len);
+                    
+                    upload_file_info = ngx_palloc(r->pool, sizeof(ngx_http_tfs_upload_file_info_t));
+                    if(upload_file_info == NULL) {
+                        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+                    }
+                    
+                    upload_file_info->file_size = ngx_atosz(colon + 1, comma - colon - 1);
+                    upload_file_info->file_index = n;
+                    
+                    filename_key->value = upload_file_info;
+                    
+                    file_size = ngx_array_push(ctx->size_array);
+                    *file_size = upload_file_info->file_size;
+                    
+                    if(colon - file_list > 64) {
+                        return NGX_HTTP_BAD_REQUEST;
+                    }
+
+                    if (last) {
+                        break;
+                    }
+
+                    file_list = ++comma;
+                }
+                
+                ctx->file_list = ngx_palloc(r->pool, sizeof(ngx_hash_init_t));
+                if(ctx->file_list == NULL) {
+                    return NGX_HTTP_INTERNAL_SERVER_ERROR;
+                }
+                
+                ctx->file_list->hash = NULL;
+                ctx->file_list->key = ngx_hash_key_lc;
+                ctx->file_list->max_size = 512;
+                ctx->file_list->bucket_size = ngx_align(64, ngx_cacheline_size);
+                ctx->file_list->name = "uploading_file_list";
+                ctx->file_list->pool = r->pool;
+                ctx->file_list->temp_pool = NULL;
+
+                if (ngx_hash_init(ctx->file_list, filename_array->elts, filename_array->nelts) != NGX_OK) {
+                    return NGX_HTTP_BAD_REQUEST;
+                }
+                
+                ctx->file_count = ctx->size_array->nelts;
+            }
+        }
+        
         ngx_str_set(&ctx->action.msg, "write_file");
         break;
 

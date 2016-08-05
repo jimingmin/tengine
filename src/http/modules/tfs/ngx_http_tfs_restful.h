@@ -34,7 +34,9 @@ typedef struct {
     uint8_t                      version;
     uint8_t                      file_type;
     ngx_int_t                    large_file;
-    ngx_array_t                  *size_array;
+    ngx_array_t                  *size_array;       //for upload file
+    ngx_hash_init_t              *file_list;        //for upload file
+    uint8_t                      file_count;        //upload file count
     ngx_array_t                  *files_content;
 
     ngx_int_t                    read_stat_type;
@@ -53,5 +55,9 @@ typedef struct {
 ngx_int_t ngx_http_restful_parse(ngx_http_request_t *r,
     ngx_http_tfs_restful_ctx_t *ctx);
 
+typedef struct {
+    size_t              file_size;
+    uint8_t             file_index;
+} ngx_http_tfs_upload_file_info_t;
 
 #endif  /* _NGX_HTTP_TFS_RESTFUL_H_INCLUDED_ */
