@@ -1058,24 +1058,78 @@ ngx_http_tfs_block_cache_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     return NGX_CONF_OK;
 }
 
+static ngx_str_t *
+ngx_http_tfs_get_file_name_from_body(ngx_http_request_t *r, u_char *body_pos, ngx_str_t *boundary)
+{
+    u_char            *flag;
+    ngx_str_t         *file_name;
+    
+    flag = ngx_strstrn(body_pos, (char *)boundary->data, boundary->len - 1);
+    if(flag == NULL) {
+        return NULL;
+    }
+    
+    flag = ngx_strstrn(flag, "name", 3);
+    if(flag == NULL) {
+        return NULL;
+    }
+
+    flag += 4;
+    if(*flag++ == '=' && *flag++ == '"') {
+        body_pos = flag;
+
+        flag = (u_char *)ngx_strchr(flag, '"');
+        if(flag == NULL) {
+            return NULL;
+        }
+        
+        file_name = ngx_palloc(r->pool, sizeof(ngx_str_t));
+        if(file_name == NULL) {
+            return NULL;
+        }
+        
+        file_name->len = flag - body_pos;
+        file_name->data = ngx_palloc(r->pool, file_name->len);
+        ngx_strlow(file_name->data, body_pos, file_name->len);
+        
+        return file_name;
+    }
+    
+    return NULL;
+}
+
 static u_char *
 ngx_http_tfs_get_file_content_from_body(u_char *body_pos, ngx_str_t *boundary)
 {
-    u_char *flag;
+    u_char            *flag;
 
     flag = ngx_strstrn(body_pos, (char *)boundary->data, boundary->len - 1);
     if(flag == NULL) {
         return NULL;
     }
-
+    
     body_pos = flag;
 
     flag = ngx_strstrn(body_pos, (char *)"\r\n\r\n", 3);
     if(flag == NULL) {
         return NULL;
     }
-
+    
     return flag + 4;
+}
+
+static ngx_http_tfs_upload_file_info_t *
+ngx_http_tfs_get_file_info_from_body(ngx_http_request_t *r, ngx_str_t *file_name)
+{
+    ngx_http_tfs_t    *t;
+    ngx_http_tfs_restful_ctx_t *r_ctx;
+    ngx_uint_t        key;
+    
+    t = ngx_http_get_module_ctx(r, ngx_http_tfs_module);
+    r_ctx = &t->r_ctx;
+    
+    key = ngx_hash_key_lc(file_name->data, file_name->len);
+    return ngx_hash_find(r_ctx->file_list->hash, key, file_name->data, file_name->len);
 }
 
 static void
@@ -1084,15 +1138,16 @@ ngx_http_tfs_read_body_handler(ngx_http_request_t *r)
     ngx_int_t          rc;
     ngx_http_tfs_t    *t;
     ngx_connection_t  *c;
-    ngx_chain_t       *body, *f_content_tmp, **file_content;
+    ngx_chain_t       *body, *f_content_tmp, **file_content, *uploading_content[NGX_HTTP_TFS_MAX_BATCH_COUNT];
     uint64_t           data_size;
     ngx_buf_t         *tmp_b;
     ssize_t            n;
     u_char            *p;
-    ngx_str_t         *boundary;
+    ngx_str_t         *boundary, *file_name;
     ngx_array_t       *size_array;
-    uint8_t           file_count;
+    uint8_t           index, file_index;
     size_t            file_size;
+    ngx_http_tfs_upload_file_info_t     *upload_file_info;
 
     c = r->connection;
     t = ngx_http_get_module_ctx(r, ngx_http_tfs_module);
@@ -1161,13 +1216,73 @@ ngx_http_tfs_read_body_handler(ngx_http_request_t *r)
         }
 
         boundary = &r->headers_in.boundary;
-
         size_array = t->r_ctx.size_array;
+        
+        if(size_array != NULL && t->r_ctx.action.code == NGX_HTTP_TFS_ACTION_WRITE_FILE) {
+            t->write_multi_file = 1;
+            t->r_ctx.files_content = ngx_array_create(t->pool, t->r_ctx.file_count, sizeof(ngx_chain_t **));
+            
+            for(index = 0; index < t->r_ctx.file_count; index++) {
+                if(t->r_ctx.file_list) {
+                    file_name = ngx_http_tfs_get_file_name_from_body(r, p, boundary);
+                    if(file_name == NULL) {
+                        ngx_http_finalize_request(r, NGX_HTTP_BAD_REQUEST);
+                        return;
+                    }
+                    
+                    upload_file_info = ngx_http_tfs_get_file_info_from_body(r, file_name);
+                    if(upload_file_info == NULL) {
+                        ngx_http_finalize_request(r, NGX_HTTP_BAD_REQUEST);
+                        return;
+                    }
+                    
+                    file_size = upload_file_info->file_size;
+                    file_index = upload_file_info->file_index;
+                } else {
+                    file_size = *(size_t *) ((u_char *)size_array->elts + (size_array->size * index));
+                    file_index = index;
+                }
+                
+                //get file content
+                p = ngx_http_tfs_get_file_content_from_body(p, boundary);
+                if(p == NULL) {
+                    ngx_http_finalize_request(r, NGX_HTTP_BAD_REQUEST);
+                    return;
+                }
+                
+                if(p + file_size > tmp_b->last) {
+                    ngx_http_finalize_request(r, NGX_HTTP_BAD_REQUEST);
+                    return;
+                }
+                
+                f_content_tmp = ngx_chain_get_free_buf(t->pool, &t->free_bufs);
+                if(f_content_tmp == NULL) {
+                    ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+                    return;
+                }
+                f_content_tmp->buf->start = p;
+                f_content_tmp->buf->end = p + file_size;
+                f_content_tmp->buf->pos = f_content_tmp->buf->start;
+                f_content_tmp->buf->last = f_content_tmp->buf->end;
+                f_content_tmp->buf->temporary = 1;
+
+                uploading_content[file_index] = f_content_tmp;
+                
+                p += file_size;
+            }
+        }
+        
+        for(index = 0; index < t->r_ctx.file_count; index++) {
+            file_content = ngx_array_push(t->r_ctx.files_content);
+            *file_content = uploading_content[index];
+        }
+        
+        /*size_array = t->r_ctx.size_array;
         if(size_array != NULL && t->r_ctx.action.code == NGX_HTTP_TFS_ACTION_WRITE_FILE) {
             t->write_multi_file = 1;
             t->r_ctx.files_content = ngx_array_create(t->pool, size_array->nelts, sizeof(ngx_chain_t **));
-            for(file_count = 0; file_count < size_array->nelts; file_count++) {
-                file_size = *(size_t *) ((u_char *)size_array->elts + (size_array->size * file_count));
+            for(index = 0; index < size_array->nelts; index++) {
+                file_size = *(size_t *) ((u_char *)size_array->elts + (size_array->size * index));
                 //get file content
                 p = ngx_http_tfs_get_file_content_from_body(p, boundary);
                 if(p == NULL) {
@@ -1197,7 +1312,7 @@ ngx_http_tfs_read_body_handler(ngx_http_request_t *r)
 
                 p += file_size;
             }
-        }
+        }*/
     }
 
     if (r->request_body) {
