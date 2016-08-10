@@ -619,7 +619,7 @@ ngx_http_tfs_set_output_file_name(ngx_http_tfs_t *t)
     if(t->file_name_list->size > 0) {
         file_name = ngx_array_push(t->file_name_list);
         ngx_memcpy(file_name, &t->file_name, sizeof(ngx_str_t));
-        if(t->file_name_list->nelts >= t->r_ctx.size_array->nelts) {
+        if(t->file_name_list->nelts >= t->r_ctx.file_count) {
             cl = ngx_http_tfs_json_file_name_list(t->json_output, t->file_name_list);
             if (cl == NULL) {
                 return NGX_ERROR;
