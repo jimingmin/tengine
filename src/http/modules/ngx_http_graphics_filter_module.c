@@ -772,7 +772,7 @@ ngx_http_graphics_asis(ngx_http_request_t *r, ngx_http_graphics_filter_ctx_t *ct
     MagickWand                    *wand;
     u_char                        *image_start, *image_last;
     size_t                         image_size;
-    MagickPassFail                 status;
+    MagickBool                     status;
     ExceptionType                  severity;
     char                          *description;
     ngx_pool_cleanup_t            *cln;
@@ -791,7 +791,7 @@ ngx_http_graphics_asis(ngx_http_request_t *r, ngx_http_graphics_filter_ctx_t *ct
         wand = ngx_http_graphics_source(r, ctx);
         
         status = MagickSetImageFormat(wand, "webp");
-        if(status != MagickPass) {
+        if(status != MagickTrue) {
             description = MagickGetException(wand, &severity);
             ngx_log_debug(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                    "graphics set image format failed : %s", description);
@@ -1142,6 +1142,7 @@ ngx_http_graphics_resize(ngx_http_request_t *r, ngx_http_graphics_filter_ctx_t *
     dx = sx;
     dy = sy;
     
+    resize = 0;
     if (conf->filter == NGX_HTTP_GRAPHICS_RESIZE) {
         if ((ngx_uint_t) dx > ctx->max_width) {
             dy = dy * ctx->max_width / dx;
