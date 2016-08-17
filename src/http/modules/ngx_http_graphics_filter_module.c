@@ -770,12 +770,13 @@ ngx_http_graphics_asis(ngx_http_request_t *r, ngx_http_graphics_filter_ctx_t *ct
 {
     ngx_buf_t                     *b;
     MagickWand                    *wand;
-    u_char                        *image_start, *image_last;
+    u_char                        *image_start, *image_last, *image_blob;
     size_t                         image_size;
     MagickBool                     status;
     ExceptionType                  severity;
     char                          *description;
     ngx_pool_cleanup_t            *cln;
+    ngx_http_graphics_filter_conf_t  *conf;
 
     b = ngx_pcalloc(r->pool, sizeof(ngx_buf_t));
     if (b == NULL) {
@@ -785,10 +786,18 @@ ngx_http_graphics_asis(ngx_http_request_t *r, ngx_http_graphics_filter_ctx_t *ct
     image_start = ctx->image;
     image_last = ctx->last;
     
+    conf = ngx_http_get_module_loc_conf(r, ngx_http_graphics_filter_module);
     cln = ngx_pool_cleanup_add(r->pool, 0);
     
     if(ctx->type != NGX_HTTP_GRAPHICS_WEBP && !ngx_http_graphics_want_origin_file_format(&r->raw_uri) && cln != NULL) {
         wand = ngx_http_graphics_source(r, ctx);
+        
+        status = MagickSetCompressionQuality(wand, conf->jpeg_quality);
+        if(status != MagickPass) {
+            description = MagickGetException(wand, &severity);
+            ngx_log_debug(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+               "graphics compression quality failed : %s", description);
+        }
         
         status = MagickSetImageFormat(wand, "webp");
         if(status != MagickTrue) {
@@ -798,13 +807,20 @@ ngx_http_graphics_asis(ngx_http_request_t *r, ngx_http_graphics_filter_ctx_t *ct
             
             DestroyMagickWand(wand);
         } else {
-            image_start = MagickWriteImageBlob(wand, &image_size);
-            image_last = image_start + image_size;
-            
-            ngx_pfree(r->pool, ctx->image);
-            
-            cln->handler = ngx_http_graphics_cleanup;
-            cln->data = wand;
+            image_blob = MagickWriteImageBlob(wand, &image_size);
+            if(image_size > ctx->image_size) {
+                DestroyMagickWand(wand);
+                ngx_log_debug(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                   "graphics handled image bigger than origin image, so use origin image");
+            } else {
+                image_start = image_blob;
+                image_last = image_start + image_size;
+
+                ngx_pfree(r->pool, ctx->image);
+
+                cln->handler = ngx_http_graphics_cleanup;
+                cln->data = wand;
+            }
         }
     }
     
