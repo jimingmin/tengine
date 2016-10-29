@@ -79,6 +79,11 @@ typedef struct {
     ngx_uint_t                   force;
 } ngx_http_graphics_filter_ctx_t;
 
+typedef struct {
+    MagickWand                    *wand;
+    u_char                        *image_blob;
+} image_data_t;
+
 static ngx_int_t ngx_http_graphics_header_filter(ngx_http_request_t *r);
 static ngx_int_t ngx_http_graphics_body_filter(ngx_http_request_t *r, ngx_chain_t *in);
 static ngx_buf_t *ngx_http_graphics_json(ngx_http_request_t *r, ngx_http_graphics_filter_ctx_t *ctx);
@@ -777,6 +782,7 @@ ngx_http_graphics_asis(ngx_http_request_t *r, ngx_http_graphics_filter_ctx_t *ct
     char                          *description;
     ngx_pool_cleanup_t            *cln;
     ngx_http_graphics_filter_conf_t  *conf;
+    image_data_t                  *image_data;
 
     b = ngx_pcalloc(r->pool, sizeof(ngx_buf_t));
     if (b == NULL) {
@@ -788,8 +794,9 @@ ngx_http_graphics_asis(ngx_http_request_t *r, ngx_http_graphics_filter_ctx_t *ct
     
     conf = ngx_http_get_module_loc_conf(r, ngx_http_graphics_filter_module);
     cln = ngx_pool_cleanup_add(r->pool, 0);
+    image_data = ngx_palloc(r->pool, sizeof(image_data_t));
     
-    if(ctx->type != NGX_HTTP_GRAPHICS_WEBP && !ngx_http_graphics_want_origin_file_format(&r->raw_uri) && cln != NULL) {
+    if(ctx->type != NGX_HTTP_GRAPHICS_WEBP && !ngx_http_graphics_want_origin_file_format(&r->raw_uri) && cln != NULL && image_data != NULL) {
         wand = ngx_http_graphics_source(r, ctx);
         
         status = MagickSetCompressionQuality(wand, conf->jpeg_quality);
@@ -817,9 +824,12 @@ ngx_http_graphics_asis(ngx_http_request_t *r, ngx_http_graphics_filter_ctx_t *ct
                 image_last = image_start + image_size;
 
                 ngx_pfree(r->pool, ctx->image);
-
+                
+                image_data->wand = wand;
+                image_data->image_blob = image_blob;
+                
                 cln->handler = ngx_http_graphics_cleanup;
-                cln->data = wand;
+                cln->data = image_data;
             }
         }
     }
@@ -1134,6 +1144,12 @@ ngx_http_graphics_resize(ngx_http_request_t *r, ngx_http_graphics_filter_ctx_t *
     MagickPassFail                 status;
     ExceptionType                  severity;
     char                          *description;
+    image_data_t                  *image_data;
+    
+    image_data = ngx_palloc(r->pool, sizeof(image_data_t));
+    if (image_data == NULL) {
+        return NULL;
+    }
     
     wand = ngx_http_graphics_source(r, ctx);
 
@@ -1283,7 +1299,7 @@ ngx_http_graphics_resize(ngx_http_request_t *r, ngx_http_graphics_filter_ctx_t *
 //    }
 
 //    MagickSetImageInterlaceScheme(wand, (int) conf->interlace);
-
+    
     if(ctx->type != NGX_HTTP_GRAPHICS_WEBP && !ngx_http_graphics_want_origin_file_format(&r->raw_uri)) {
         status = MagickSetImageFormat(wand, "webp");
         if(status != MagickPass) {
@@ -1320,8 +1336,11 @@ ngx_http_graphics_resize(ngx_http_request_t *r, ngx_http_graphics_filter_ctx_t *
         return NULL;
     }
 
+    image_data->wand = wand;
+    image_data->image_blob = out;
+    
     cln->handler = ngx_http_graphics_cleanup;
-    cln->data = wand;
+    cln->data = image_data;
 
     b->pos = out;
     b->last = out + out_size;
@@ -1368,7 +1387,8 @@ static void
 ngx_http_graphics_cleanup(void *data)
 {
     if(data != NULL) {
-        DestroyMagickWand((MagickWand *)data);
+        DestroyMagickWand(((image_data_t *)data)->wand);
+        free(((image_data_t *)data)->image_blob);
     }
 }
 
