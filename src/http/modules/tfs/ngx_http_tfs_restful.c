@@ -699,7 +699,7 @@ ngx_http_restful_parse_action_raw(ngx_http_request_t *r,
                         return NGX_HTTP_BAD_REQUEST;
                     }
 
-                    comma = ngx_strlchr(file_list, file_list + arg_value.len, ',');
+                    comma = ngx_strlchr(file_list, arg_value.data + arg_value.len, ',');
                     if (!comma) {
                         comma = arg_value.data + arg_value.len;
                         last = 1;
